@@ -331,34 +331,7 @@ if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     promp1=prompt
-    # 3. Get the assistant's response.
-    # Use a 'try...except' block to gracefully handle potential errors (e.g., network issues, API errors).
-    try:
-     # Ambil data pembelian per KODE dari tabel beli
-        prompt = prompt + """tolong jawab dengan hasil query stok dari database yang sudah dideklarasikan di atas saja,
-          dalam format tabel yang rapi dan mudah dibaca jika ada jawabn lain gunakan bahasa yang sama dengan penanya:"""
-        # Send the user's prompt to the Gemini API.
-        response = st.session_state.chat.send_message(prompt)
-        
-        # Safely get the text from the response object.
-        # `hasattr(object, 'attribute_name')` checks if an object has a specific property.
-        # This prevents an error if the API response object doesn't have a '.text' attribute.
-        if hasattr(response, "text"):
-            answer = response.text
-        else:
-            # If there's no '.text', convert the whole response to a string as a fallback.
-            answer = str(response)
-
-    except Exception as e:
-        # If any error occurs, create an error message to display to the user.
-        answer = f"An error occurred: {e}"
-
-    # 4. Display the assistant's response.
-    with st.chat_message("assistant"):
-        st.markdown(answer)
-    # 5. Add the assistant's response to the message history list.
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-
+    
     beli_in_df1 = pd.read_sql_query("""
     SELECT 
     KODE,
@@ -396,9 +369,48 @@ if prompt:
     # Gabungkan BARANG_OUT dari jual_out_df ke stok_df berdasarkan KODE
     stok_df1 = stok_df1.merge(jual_out_df1, on="KODE", how="left")
 
-# Gabungkan BAANG_IN dari beli_in_df ke stok_df berdasarkan KODE
-stok_df1 = stok_df1.merge(beli_in_df1, on="KODE", how="left")
+    # Gabungkan BAANG_IN dari beli_in_df ke stok_df berdasarkan KODE
+    stok_df1 = stok_df1.merge(beli_in_df1, on="KODE", how="left")
 
+    json_result = stok_df1.to_json(orient="records")
+    data = json.loads(json_result)
+    
+    
+    # 3. Get the assistant's response.
+    # Use a 'try...except' block to gracefully handle potential errors (e.g., network issues, API errors).
+    try:
+        # Ambil data pembelian per KODE dari tabel beli
+        prompt = f"""
+        Kamu adalah asisten yang hanya menjawab dengan JSON.
+        Berikut adalah data stok dalam format JSON:
+        {json_result}
+
+        Tolong jawab ulang data tersebut **dalam format JSON persis** tanpa tambahan teks.
+        dalam format tabel yang rapi dan mudah dibaca
+        """
+        # Send the user's prompt to the Gemini API.
+        response = st.session_state.chat.send_message(prompt)
+        
+        # Safely get the text from the response object.
+        # `hasattr(object, 'attribute_name')` checks if an object has a specific property.
+        # This prevents an error if the API response object doesn't have a '.text' attribute.
+        if hasattr(response, "text"):
+            answer = response.text
+        else:
+            # If there's no '.text', convert the whole response to a string as a fallback.
+            answer = str(response)
+
+    except Exception as e:
+        # If any error occurs, create an error message to display to the user.
+        answer = f"An error occurred: {e}"
+
+    # 4. Display the assistant's response.
+    with st.chat_message("assistant"):
+        st.markdown(answer)
+    # 5. Add the assistant's response to the message history list.
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+
+    
      #prompt = stok_df1.to_string()
      
 st.write("STOK (Top 20):")
